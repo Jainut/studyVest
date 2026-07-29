@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  dailyGoalMin  Int            @default(360) @map("daily_goal_min")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  essays        Essay[]
+  goals         Goal[]
+  mistakes      Mistake[]
+  questions     Question[]
+  reviews       Review[]
+  schedules     Schedule[]
+  studySessions StudySession[]
+  subjects      Subject[]
+  topics        Topic[]
+
+  @@map("users")
+}
+
+model Subject {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String         @map("user_id") @db.Uuid
+  name          String
+  color         String?
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  schedules     Schedule[]
+  studySessions StudySession[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  topics        Topic[]
+
+  @@unique([userId, name], map: "subjects_user_name_unique")
+  @@index([userId])
+  @@map("subjects")
+}
+
+model Topic {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  subjectId         String         @map("subject_id") @db.Uuid
+  parentId          String?        @map("parent_topic_id") @db.Uuid
+  name              String
+  description       String?
+  fuvestImportance  Int            @default(0) @map("importance_fuvest")
+  enemImportance    Int            @default(0) @map("importance_enem")
+  difficulty        Difficulty     @default(MEDIO)
+  priority          Priority       @default(MEDIA)
+  status            TopicStatus    @default(PENDENTE)
+  studyDate         DateTime?      @map("study_date") @db.Timestamptz(6)
+  nextReviewDate    DateTime?      @map("next_review_date") @db.Timestamptz(6)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  questions         Question[]
+  reviews           Review[]
+  schedules         Schedule[]
+  studySessions     StudySession[]
+  parent            Topic?         @relation("TopicHierarchy", fields: [parentId], references: [id], onUpdate: NoAction)
+  subtopics         Topic[]        @relation("TopicHierarchy")
+  subject           Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([subjectId])
+  @@index([nextReviewDate])
+  @@index([status])
+  @@index([userId])
+  @@map("topics")
+}
+
+model StudySession {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  topicId     String?  @map("topic_id") @db.Uuid
+  subjectId   String   @map("subject_id") @db.Uuid
+  durationMin Int      @map("duration_min")
+  date        DateTime @default(now()) @db.Timestamptz(6)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  topic       Topic?   @relation(fields: [topicId], references: [id], onUpdate: NoAction)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([subjectId])
+  @@index([date])
+  @@index([userId])
+  @@map("study_sessions")
+}
+
+model Question {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  topicId      String     @map("topic_id") @db.Uuid
+  examType     ExamType   @map("exam_type")
+  year         Int?
+  institution  String?
+  difficulty   Difficulty @default(MEDIO)
+  isCorrect    Boolean    @map("is_correct")
+  timeSpentSec Int?       @map("time_spent_sec")
+  errorNote    String?    @map("error_note")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  mistake      Mistake?
+  topic        Topic      @relation(fields: [topicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([topicId])
+  @@index([examType])
+  @@index([isCorrect])
+  @@index([userId])
+  @@map("questions")
+}
+
+model Mistake {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String        @map("user_id") @db.Uuid
+  questionId String        @unique @map("question_id") @db.Uuid
+  reason     String
+  howToFix   String?       @map("how_to_fix")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  question   Question      @relation(fields: [questionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId])
+  @@index([reason])
+  @@map("mistakes")
+}
+
+model Review {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  topicId      String       @map("topic_id") @db.Uuid
+  dueDate      DateTime     @map("due_date") @db.Timestamptz(6)
+  status       ReviewStatus @default(PENDENTE)
+  intervalDays Int          @map("interval_days")
+  completedAt  DateTime?    @map("completed_at") @db.Timestamptz(6)
+  performance  Int?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  topic        Topic        @relation(fields: [topicId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([dueDate])
+  @@index([status])
+  @@index([userId])
+  @@map("reviews")
+}
+
+model Essay {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  theme     String
+  date      DateTime @default(now()) @db.Timestamptz(6)
+  score     Int?
+  comp1     Int?     @map("comp_1")
+  comp2     Int?     @map("comp_2")
+  comp3     Int?     @map("comp_3")
+  comp4     Int?     @map("comp_4")
+  comp5     Int?     @map("comp_5")
+  feedback  String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([date])
+  @@index([userId])
+  @@map("essays")
+}
+
+model Schedule {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  subjectId   String         @map("subject_id") @db.Uuid
+  topicId     String?        @map("topic_id") @db.Uuid
+  title       String?
+  date        DateTime       @db.Timestamptz(6)
+  durationMin Int            @map("duration_min")
+  status      ScheduleStatus @default(PLANEJADO)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  subject     Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  topic       Topic?         @relation(fields: [topicId], references: [id], onUpdate: NoAction)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([date])
+  @@index([userId])
+  @@map("schedules")
+}
+
+model Goal {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  title        String
+  target_date  DateTime? @db.Timestamptz(6)
+  targetValue  Int?      @map("target_value")
+  currentValue Int       @default(0) @map("current_value")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId])
+  @@map("goals")
+}
+
+enum TopicStatus {
+  PENDENTE
+  ESTUDANDO
+  REVISANDO
+  DOMINADO
+}
+
+enum Priority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum Difficulty {
+  FACIL
+  MEDIO
+  DIFICIL
+}
+
+enum ReviewStatus {
+  PENDENTE
+  CONCLUIDA
+  ATRASADA
+}
+
+enum ExamType {
+  FUVEST
+  ENEM
+  OUTRO
+}
+
+enum ScheduleStatus {
+  PLANEJADO
+  CONCLUIDO
+  CANCELADO
+}
