@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # StudyVest
 
 Aplicação completa para organizar a preparação para FUVEST e ENEM. O StudyVest
@@ -186,3 +187,6 @@ produção:
 5. use um `JWT_SECRET` longo e exclusivo.
 
 O `nginx.conf` do frontend já contém fallback para as rotas do React Router.
+=======
+# studyVest
+>>>>>>> 89db2a2a46f32f8ad5426fbab804d100db9d382f
